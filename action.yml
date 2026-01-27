@@ -26,6 +26,8 @@ runs:
       run: |
         sudo apt install -y --no-install-recommends librime-bin
         mkdir /tmp/deploy-schema && cd /tmp/deploy-schema
+        curl -LO https://github.com/rimeinn/deploy-schema/releases/download/latest/rime_deployer
+        chmod +x rime_deployer
         mkdir user shared
         git clone --depth=1 https://github.com/rime/plum
         while IFS= read -r line; do
@@ -39,10 +41,10 @@ runs:
         cd user
         if [[ ! -z "${{ inputs.schema-list }}" ]]; then
           while IFS= read -r line; do
-            rime_deployer --add-schema $line
+            ../rime_deployer --add-schema $line
           done <<< "${{ inputs.schema-list }}"
         fi
-        rime_deployer --build . ../shared build
+        ../rime_deployer --build . ../shared build
         package_items_list=""
         while IFS= read -r line; do
           package_items_list="$package_items_list $line"

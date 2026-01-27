@@ -1,0 +1,43 @@
+name: Build rime deployer
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get librime version
+        run: echo "LIBRIME_VERSION=$(cat .librime-version)" >> $GITHUB_ENV
+
+      - name: Checkout librime
+        uses: actions/checkout@v6
+        with:
+          repository: rime/librime
+          ref: ${{ env.LIBRIME_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install libboost-regex-dev libleveldb-dev libmarisa-dev libyaml-cpp-dev libopencc-dev
+
+      - name: Build
+        run: |
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DENABLE_LOGGING=OFF -DBUILD_TEST=OFF
+          cmake --build build
+          g++ -I src -I build/src -o rime_deployer tools/rime_deployer.cc build/lib/librime.a -lmarisa -lleveldb -lopencc -lyaml-cpp
+
+      - name: Release
+        uses: 'marvinpinto/action-automatic-releases@latest'
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          automatic_release_tag: latest
+          prerelease: true
+          title: "Nightly Build"
+          files: |
+            rime_deployer
+
+      - name: Setup tmate session
+        if: ${{ failure() }}
+        uses: mxschmitt/action-tmate@v3
+
+
