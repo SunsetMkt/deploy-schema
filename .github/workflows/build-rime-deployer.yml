@@ -4,7 +4,15 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            binary_name: rime_deployer
+          - os: ubuntu-24.04-arm
+            binary_name: rime_deployer-arm64
+
     steps:
       - name: Get librime version
         run: echo "LIBRIME_VERSION=$(cat .librime-version)" >> $GITHUB_ENV
@@ -24,7 +32,26 @@ jobs:
         run: |
           cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DENABLE_LOGGING=OFF -DBUILD_TEST=OFF
           cmake --build build
-          g++ -I src -I build/src -o rime_deployer tools/rime_deployer.cc build/lib/librime.a -lmarisa -lleveldb -lopencc -lyaml-cpp
+          g++ -I src -I build/src -o ${{ matrix.binary_name }} tools/rime_deployer.cc build/lib/librime.a -lmarisa -lleveldb -lopencc -lyaml-cpp
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.binary_name }}
+          path: ${{ matrix.binary_name }}
+
+      - name: Setup tmate session
+        if: ${{ failure() }}
+        uses: mxschmitt/action-tmate@v3
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
 
       - name: Release
         uses: 'marvinpinto/action-automatic-releases@latest'
@@ -34,10 +61,4 @@ jobs:
           prerelease: true
           title: "Nightly Build"
           files: |
-            rime_deployer
-
-      - name: Setup tmate session
-        if: ${{ failure() }}
-        uses: mxschmitt/action-tmate@v3
-
-
+            rime_deployer*
